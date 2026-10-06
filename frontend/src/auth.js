@@ -1,15 +1,22 @@
-export const getUser = () => {
-  const raw = localStorage.getItem('user');
-  return raw ? JSON.parse(raw) : null;
-};
+import { create } from 'zustand';
 
-export const saveAuth = (user, token) => {
-  localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('token', token);
-};
+const storedUser = localStorage.getItem('user');
+const storedToken = localStorage.getItem('token');
 
-export const logout = () => {
-  localStorage.removeItem('user');
-  localStorage.removeItem('token');
-  window.location.href = '/';
-};
+export const useAuth = create((set) => ({
+  user: storedUser ? JSON.parse(storedUser) : null,
+  token: storedToken || null,
+
+  saveAuth: (user, token) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', token);
+    set({ user, token });
+  },
+
+  logout: () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    set({ user: null, token: null });
+    window.location.href = '/';
+  },
+}));

@@ -16,7 +16,7 @@ export default function MyBookings() {
       ) : (
         <div className="space-y-3">
           {bookings.map((b) => (
-            <div key={b.id} className="bg-white p-4 rounded-lg shadow flex justify-between">
+            <div key={b.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between">
               <div>
                 <h2 className="font-bold">{b.title}</h2>
                 <p className="text-sm text-gray-500">{b.venue} · {new Date(b.event_date).toLocaleString()}</p>

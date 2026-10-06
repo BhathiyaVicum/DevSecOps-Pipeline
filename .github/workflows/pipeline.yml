@@ -1,0 +1,168 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  BACKEND_REPO: booking-backend
+  FRONTEND_REPO: booking-frontend
+  EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+
+jobs:
+  # 1. SONARCLOUD SAST
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # 2. TRIVY FILESYSTEM SCAN
+  trivy-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy fs scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+  # 3. BUILD + PUSH BACKEND
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: [sonar, trivy-fs]
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build backend image
+        run: |
+          docker build -t $ECR_REGISTRY/$BACKEND_REPO:sha-${{ steps.vars.outputs.sha_short }} ./backend
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.BACKEND_REPO }}:sha-${{ steps.vars.outputs.sha_short }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Push backend image
+        run: |
+          docker push $ECR_REGISTRY/$BACKEND_REPO:sha-${{ steps.vars.outputs.sha_short }}
+
+  # 4. BUILD + PUSH FRONTEND 
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: [sonar, trivy-fs]
+    outputs:
+      image_tag: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build frontend image
+        run: |
+          docker build -t $ECR_REGISTRY/$FRONTEND_REPO:sha-${{ steps.vars.outputs.sha_short }} ./frontend
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.FRONTEND_REPO }}:sha-${{ steps.vars.outputs.sha_short }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Push frontend image
+        run: |
+          docker push $ECR_REGISTRY/$FRONTEND_REPO:sha-${{ steps.vars.outputs.sha_short }}
+
+  # 5. DEPLOY VIA SSM
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy via SSM Run Command
+        run: |
+          SHA_TAG="${{ needs.build-backend.outputs.image_tag }}"
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy sha-$SHA_TAG" \
+            --parameters "commands=[
+              'cd /home/ec2-user/app',
+              'echo TAG=sha-$SHA_TAG > .env.tag',
+              'aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}',
+              'sed -i \"s/^TAG=.*/TAG=sha-$SHA_TAG/\" .env',
+              'docker compose pull',
+              'docker compose up -d',
+              'docker image prune -f'
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Command ID: $COMMAND_ID"
+
+          # Wait for completion
+          sleep 15
+
+          STATUS=$(aws ssm list-command-invocations \
+            --command-id "$COMMAND_ID" \
+            --details \
+            --query "CommandInvocations[0].Status" \
+            --output text)
+
+          echo "Status: $STATUS"
+          if [ "$STATUS" != "Success" ]; then
+            echo "Deploy failed"
+            exit 1
+          fi

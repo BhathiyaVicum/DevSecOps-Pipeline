@@ -37,7 +37,7 @@ export default function Admin() {
     <div>
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
-      <form onSubmit={create} className="bg-white p-4 rounded-lg shadow mb-8 grid gap-3">
+      <form onSubmit={create} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-8 grid gap-3">
         <h2 className="font-bold">Create Event</h2>
         {msg && <p className="text-blue-600 text-sm">{msg}</p>}
         <input className="border rounded px-3 py-2" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
@@ -51,7 +51,7 @@ export default function Admin() {
 
       <div className="space-y-3">
         {events.map((e) => (
-          <div key={e.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+          <div key={e.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
             <div>
               <h3 className="font-bold">{e.title}</h3>
               <p className="text-sm text-gray-500">{new Date(e.event_date).toLocaleString()}</p>

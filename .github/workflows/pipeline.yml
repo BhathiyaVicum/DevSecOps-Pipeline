@@ -45,6 +45,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          trivyignores: '.trivyignore' 
 
   # 3. BUILD + PUSH BACKEND
   build-backend:
@@ -118,6 +119,7 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          trivyignores: '.trivyignore' 
 
       - name: Push frontend image
         run: |

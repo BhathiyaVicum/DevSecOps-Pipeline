@@ -8,33 +8,23 @@ permissions:
   contents: read
 
 jobs:
-  decode-token:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Print OIDC token claims (no AWS)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Who am I?
+        run: aws sts get-caller-identity
+
+      - name: Debug token subject
         run: |
-          # Get the token from GitHub
-          RESP=$(curl -sS \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")
-
-          echo "=== raw response ==="
-          echo "$RESP"
-          echo "===================="
-
-          TOKEN=$(echo "$RESP" | jq -r .value)
-          echo "=== token length: ${#TOKEN} ==="
-
-          # Decode payload
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
           PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
           PAD=$((4 - ${#PAYLOAD} % 4))
           [ $PAD -ne 4 ] && PAYLOAD="$PAYLOAD$(printf '=%.0s' $(seq 1 $PAD))"
-          DECODED=$(echo "$PAYLOAD" | tr '_-' '/+' | base64 -d 2>/dev/null)
-
-          echo "=== decoded claims ==="
-          echo "$DECODED" | jq .
-          echo "======================"
-
-          echo "=== THE SUB (copy this exactly) ==="
-          echo "$DECODED" | jq -r .sub
-          echo "==================================="
+          echo "$PAYLOAD" | tr '_-' '/+' | base64 -d 2>/dev/null | jq .

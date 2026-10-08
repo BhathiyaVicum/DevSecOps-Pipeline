@@ -168,7 +168,8 @@ DELETE /api/events/:id
 
 ## 3. Building the Frontend
 
-<img width="1916" height="963" alt="Frontend Application" src="https://github.com/user-attachments/assets/415f1db3-da7d-463c-93ec-72b37689172f" />
+<img width="1918" height="967" alt="ss20" src="https://github.com/user-attachments/assets/f6f979bb-6ea9-4da5-bc3a-d64c0e047cfe" />
+<img width="1917" height="967" alt="ss19" src="https://github.com/user-attachments/assets/4355b13b-6a65-491e-973c-2d38c5420581" />
 
 The frontend was built as a React single-page application.
 
@@ -745,27 +746,9 @@ The tunnel showed a **Healthy** status with **4 active connections**, confirming
 
 <!-- Recommended screenshot: Cloudflare Dashboard showing the Healthy tunnel and active connections -->
 
-### Final Cloudflare Architecture
-
-```text
-Internet
-    │
-    ▼
-Cloudflare Edge
-    │
-    ▼
-Cloudflare Tunnel
-    │
-    │ outbound connection
-    ▼
-EC2
-    │
-    ▼
-Nginx :80
-    │
-    ▼
-Application
-```
+### Enabled Cloudflare Security Features
+<img width="1703" height="785" alt="ss11" src="https://github.com/user-attachments/assets/82c74b0d-53a9-44a1-86ad-504a98f812da" />
+<img width="1540" height="676" alt="ss10" src="https://github.com/user-attachments/assets/aa97e0bf-a121-4520-b467-c81fc9bbffab" />
 
 ---
 
@@ -1169,6 +1152,16 @@ sha-h7i8j9k
 ```
 
 A previous version can therefore be redeployed without rebuilding the application.
+
+---
+
+# Cloudflare Analytics
+
+<img width="1450" height="791" alt="ss13" src="https://github.com/user-attachments/assets/a5e70136-4ba4-480c-a54b-19eb16c0de93" />
+<img width="1807" height="865" alt="ss14" src="https://github.com/user-attachments/assets/2e1d951f-2305-4a19-a5e9-8b61203d529a" />
+<img width="1826" height="862" alt="ss15" src="https://github.com/user-attachments/assets/4e880831-1cdf-4aad-a2c7-b9a7af50a7ce" />
+<img width="1827" height="866" alt="ss16" src="https://github.com/user-attachments/assets/d4e053d0-956a-4d44-b0e0-10b4bc6e8a82" />
+
 
 ---
 
